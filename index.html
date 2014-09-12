@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="X-UA-Compatible" content="IE=Edge;chrome=1">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width">
+	<title>PourOver Test</title>
+
+	<link rel="stylesheet" type="text/css" href="pikaday.css">
+
+	<style>
+		body {
+	    font-family: Helvetica;
+	    font-size: 11px;
+		}
+
+		.section-title{
+		    font-weight: bold;
+		    margin: 10px 0;
+		}
+		#results{
+		    font-size: 12px;
+		}
+		.result{
+		    margin-bottom: 5px;
+		}
+		#clear-date{
+			margin-top: 5px;
+			display: none;
+		}
+		#clear-date:hover{
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+	</style>
+</head>
+<body>
+	<div class="section-title">Title</div>
+	<input type="text" name="title" />
+	<br/>
+	<br/>
+	<div class="section-title">Date</div>
+	<input id="start" class="date-picker" type="text" name="date-start" />
+	<input id="end"   class="date-picker" type="text" name="date-end" />
+	<div id="clear-date">&times; Clear date</div>
+	<br/>
+	<br/>
+	<div class="section-title">Topics</div>
+	<ul data-group="topics">
+	    <li>
+	        <label>Politics
+	            <input type="checkbox" value="politics" />
+	        </label>
+	    </li>
+	    <li>
+	        <label>Race
+	            <input type="checkbox" value="race" />
+	        </label>
+	    </li>
+	    <li>
+	        <label>Religion
+	            <input type="checkbox" value="religion" />
+	        </label>
+	    </li>
+	</ul>
+	<div class="section-title">Author</div>
+	<ul data-group="authors">
+	    <li>
+	        <label>Person A
+	            <input type="checkbox" value="person-a" />
+	        </label>
+	    </li>
+	    <li>
+	        <label>Person B
+	            <input type="checkbox" value="person-b" />
+	        </label>
+	    </li>
+	    <li>
+	        <label>Person C
+	            <input type="checkbox" value="person-c" />
+	        </label>
+	    </li>
+	</ul>
+
+	<div class="section-title">Results</div>
+	<div id="results"></div>
+
+	<script src="js/underscore-min.js"></script>
+	<script src="js/jquery.min.js"></script>
+	<script src="js/pourover.js"></script>
+	<script src="js/bloodhound.js"></script>
+	<script src="js/pikaday.js"></script>
+
+	<script>
+	window.article_data = [{
+		    id: 1,
+		    title: "Fearing midterm turnout, Jedis embrace dark side.",
+		    authors: ["person-a", "person-b"],
+		    topics: ["politics", "religion"],
+		    timestamp: 1405125102
+		}, {
+		    id: 2,
+		    title: "We used the force to clean our apartment, you won't believe what happened next.",
+		    authors: ["person-b", "person-c"],
+		    topics: ["religion"],
+		    timestamp: 1407803502
+		}, {
+		    id: 3,
+		    title: "Can ewoks use the force? Jedi council debates.",
+		    authors: ["person-c"],
+		    topics: ["race", "religion"],
+		    timestamp: 1404952302
+		}]
+
+		window.collection = new PourOver.Collection(article_data);
+
+		var topicsFilter = PourOver.makeInclusionFilter("topics", ["race", "religion", "politics"]);
+		var authorsFilter = PourOver.makeInclusionFilter("authors", ["person-a", "person-b", "person-c"]);
+
+		// We'll populate this with cids from our text inputting via Bloodhound
+		var textSearchFilter = PourOver.makeManualFilter("title");
+
+		var timestampFilter = PourOver.makeContinuousRangeFilter("timestamp",{attr: "timestamp"})
+
+		collection.addFilters([topicsFilter, authorsFilter, textSearchFilter,timestampFilter]);
+
+		window.view = new PourOver.View('default_view', collection);
+		printResults();
+
+		// Grab everything and store it
+		// We'll feed this to Bloodhound
+		// Grab a list of all cids to pass when we want to 
+		var base_view = view.getCurrentItems(),
+		    all_cids  = _.pluck(base_view, 'cid');
+
+		$('input[type="checkbox"]').on('change', function () {
+		    var $this = $(this),
+		        filter_group = $this.parents('ul').attr('data-group'),
+		        value = $this.val(),
+		        checked = $this.prop('checked') == true;
+
+		    //console.log(filter_group, value, checked);
+
+		    // If it's checked set the query to the value of this tag
+		    if (checked) {
+		        collection.filters[filter_group].intersectQuery(value);
+		    } else {
+		        // If it's not checked then clear the query from the PourOver match set.
+		        collection.filters[filter_group].removeSingleQuery(value);
+		    }
+		    printResults();
+		});
+
+		// Set up bloodhound
+		// https://github.com/twitter/typeahead.js/blob/master/doc/bloodhound.md
+		var engine = new Bloodhound({
+		    name: 'articles',
+		    local: base_view,
+		    datumTokenizer: Bloodhound.tokenizers.obj.whitespace('title'),
+		    queryTokenizer: Bloodhound.tokenizers.whitespace
+		});
+
+		// Release the hound(s)
+		engine.initialize();
+
+		function runBloodhound(val, cb) {
+		    engine.get(val, function(suggestions){
+		        var cids = _.pluck(suggestions, 'cid');
+		        cb(cids);
+		    });   
+		}
+
+		// Listen to the title input
+		$('input[type = "text"][name="title"]').on('keyup ', function(){
+		    var val = $(this).val();
+		    // If we have some text, find matches and filter by those cids
+		    if (val){
+		        runBloodhound(val, addTextSearchResultsToFilter);
+		    } else {
+		        // If we don't have matches, add all cids to our filter, making it irrelevant
+		        addTextSearchResultsToFilter(all_cids);
+		    }
+		    
+		});
+
+		function addTextSearchResultsToFilter(cids){
+		    console.log(cids);
+		    // Set the manualFilter to filter by these cids
+		    // `.query` replaces the existing cids
+		    collection.filters.title.query(cids);
+		    // Let's see what we have now
+		    printResults();
+		}
+
+		// Listen to the date field
+		var picker_start = new Pikaday({
+		    field: document.getElementById('start'),
+		    clearInvalidInput: true,
+		    onSelect: function() {
+		    	var thisDate = this.getDate();
+		    	console.log(thisDate.getTime())
+		    	// On min date selection, set the max date for the end
+	        picker_end.setMinDate(thisDate);
+
+	        // Change the viewing range to the start date
+	        if (!picker_end.getDate()){
+		        picker_end.gotoDate(thisDate);
+	        }
+		      filterByDate();
+		    },
+		    onClear: function(){
+					// Always clear our filter selection invalid date aka date deleted
+					// I feel this is nice because then if you have an invalid date, you're not still filtering by some date range selection that you can no longer see
+					collection.filters.timestamp.clearQuery();
+					printResults();
+		    }
+		});
+		var picker_end = new Pikaday({
+		    field: document.getElementById('end'),
+		    clearInvalidInput: true,
+		    onSelect: function() {
+		    	var thisDate = this.getDate();
+	        picker_start.setMaxDate(thisDate);
+		      filterByDate();
+		    },
+		    onClear: function(){
+					// Always clear our filter selection invalid date aka date deleted
+					// I feel this is nice because then if you have an invalid date, you're not still filtering by some date range selection that you can no longer see
+					collection.filters.timestamp.clearQuery();
+					printResults();
+		    }
+		});
+
+		function validateDates(){
+			// Make sure both of them have dates
+			// This also checks against them being strings and other nonsense
+			return (picker_start.getDate() && picker_end.getDate())
+		}
+
+		function filterByDate(){
+			var valid_date_range = validateDates(),
+					start_timestamp,
+					end_timestamp;
+			if (valid_date_range){
+				console.log('here')
+				collection.filters.timestamp.clearQuery();
+				start_timestamp = picker_start.getDate().getTime()/1000;
+				end_timestamp   = picker_end.getDate().getTime()/1000;
+				collection.filters.timestamp.intersectQuery([start_timestamp, end_timestamp]);
+				// Allow for clearing of date
+				$('#clear-date').show();
+			}
+			printResults();
+		}
+
+		$('#clear-date').on('click', function(){
+			picker_start.clearDate(true);
+			picker_end.clearDate(true);
+			$(this).hide();
+		});
+
+		function printResults(){
+		    var results = view.getCurrentItems(),
+		        $resultsContainer = $('#results');
+		    // Clear previous results
+		    $resultsContainer.html('');
+		    results.forEach(function(result){
+		        $resultsContainer.append('<div class="result">id: ' + result.id + '; date: ' + new Date(result.timestamp*1000).toDateString() + ' title: ' + result.title + '; authors: ' + result.authors.join(', ') + '; topics: ' + result.topics.join(', ') + '</div>');
+		    });
+		}
+	</script>
+
+
+
+</body>
+</html>
