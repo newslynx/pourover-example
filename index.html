@@ -17,12 +17,13 @@
 		.section-title{
 		    font-weight: bold;
 		    margin: 10px 0;
+		    font-size: 12px;
 		}
 		#results{
 		    font-size: 12px;
 		}
 		.result{
-		    margin-bottom: 5px;
+		    margin-bottom: 15px;
 		}
 		#clear-date{
 			margin-top: 5px;
@@ -266,7 +267,7 @@
 		    // Clear previous results
 		    $resultsContainer.html('');
 		    results.forEach(function(result){
-		        $resultsContainer.append('<div class="result">id: ' + result.id + '; date: ' + new Date(result.timestamp*1000).toDateString() + ' title: ' + result.title + '; authors: ' + result.authors.join(', ') + '; topics: ' + result.topics.join(', ') + '</div>');
+		        $resultsContainer.append('<div class="result"><div class="row"><strong>id</strong>: ' + result.id + '; </div class="row"><div class="row"><strong>date</strong>: ' + new Date(result.timestamp*1000).toDateString() + ' </div class="row"><div class="row"><strong>title</strong>: ' + result.title + '; </div class="row"><div class="row"><strong>authors</strong>: ' + result.authors.join(', ') + '; </div class="row"><div class="row"><strong>topics</strong>: ' + result.topics.join(', ') + '</div>');
 		    });
 		}
 	</script>
