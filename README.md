@@ -1,7 +1,7 @@
 PourOver Example
 ===
 
-This is an example implementation using different PourOver filters to select articles. It features:
+This is an example implementation using different [PourOver](http://nytimes.github.io/pourover/) filters to select articles. It features:
 
 * Multiple `inclusionFilter`s for filtering by checkbox across multiple categories
 * A date range picker using a `continuousRangeFilter` and [Pikaday](https://github.com/dbushell/Pikaday) for the UI. Note: This uses a [Pikaday fork](https://github.com/newslynx/Pikaday) to take advantage of `clearDate` and `onClear` functionality. Follow that PR [here](https://github.com/dbushell/Pikaday/pull/134).
