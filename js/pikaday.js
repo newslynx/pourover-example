@@ -2,7 +2,7 @@
  * Pikaday
  *
  * Copyright © 2014 David Bushell | BSD & MIT license | https://github.com/dbushell/Pikaday
- * A fork from here hhttps://github.com/mhkeller/Pikaday
+ * A fork from here https://github.com/mhkeller/Pikaday
  */
 
 (function (root, factory)
